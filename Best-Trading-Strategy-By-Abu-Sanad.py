@@ -11,11 +11,11 @@ from tqdm import tqdm
 
 # Initialize the Dash app with a Bootstrap theme for a professional look
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
-server = app.server  # Expose the Flask server
+server = app.server  # Expose the Flask server
 
 app.layout = dbc.Container([
     dbc.Row([
-        dbc.Col(html.H1("Best Trading Strategy Finder", className="text-center"), className="mb-4 mt-4")
+        dbc.Col(html.H1("Trading Strategy Analyzer", className="text-center"), className="mb-4 mt-4")
     ]),
     dbc.Row([
         dbc.Col([
@@ -45,7 +45,8 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardBody([
                     html.H4("Progress", className="card-title"),
-                    dbc.Progress(id="progress-bar", striped=True, animated=True, color="success", className="mb-3"),
+                    dbc.Progress(id="progress-bar", value=0, striped=True, animated=True, color="success", className="mb-3"),
+                    html.Div(id='progress-text', className='text-center'), 
                     html.H4("Strategy Summary", className="card-title"),
                     html.Pre(id='summary-output', style={'whiteSpace': 'pre-wrap', 'font-family': 'monospace'})
                 ])
@@ -61,21 +62,47 @@ app.layout = dbc.Container([
                 ])
             ])
         ], width=12)
-    ])
+    ]),
+    dcc.Interval(id='progress-interval', interval=500, n_intervals=0) 
 ], fluid=True)
 
+# Global variables to track progress
+progress = None
+total_combinations = None
+
+@app.callback(
+    [Output('progress-bar', 'value'),
+     Output('progress-text', 'children')],
+    [Input('progress-interval', 'n_intervals')],
+    [Input('analyze-button', 'n_clicks')],
+    [Input('ticker-input', 'value'),
+     Input('period-input', 'value')]
+)
+def update_progress(n_intervals, n_clicks, ticker_input, period):
+    global progress, total_combinations 
+
+    if n_clicks is None:
+        return 0, "" 
+
+    if progress is None or total_combinations is None:
+        return 0, "" 
+
+    progress_percent = int((progress / total_combinations) * 100)
+    progress_text = f"Progress: {progress_percent}% ({progress}/{total_combinations})"
+    return progress_percent, progress_text
 
 @app.callback(
     [Output('summary-output', 'children'),
-     Output('trades-table', 'children'),
-     Output('progress-bar', 'value')],
+     Output('trades-table', 'children')],
     [Input('analyze-button', 'n_clicks')],
     [Input('ticker-input', 'value'),
      Input('period-input', 'value')]
 )
 def perform_grid_search(n_clicks, ticker_input, period):
+    global progress, total_combinations 
+
     if n_clicks is None:
-        return "", "", 0
+        return "", ""
 
     # Check if the ticker is numeric (Saudi stock symbol)
     if ticker_input.isdigit():
@@ -87,11 +114,11 @@ def perform_grid_search(n_clicks, ticker_input, period):
     df = yf.download(ticker, period=period)
 
     # Define parameter ranges for grid search
-    sma_short_range = range(5, 20, 2)  # Short SMA periods from 5 to 18
-    sma_long_range = range(10, 50, 5)  # Long SMA periods from 20 to 45
-    rsi_threshold_range = range(40, 55, 5)  # RSI thresholds from 40 to 50
-    adl_short_range = range(5, 20, 2)  # Short ADL SMA periods from 5 to 18
-    adl_long_range = range(10, 50, 5)  # Long ADL SMA periods from 20 to 45
+    sma_short_range = range(5, 20, 2) 
+    sma_long_range = range(10, 50, 5) 
+    rsi_threshold_range = range(40, 55, 5) 
+    adl_short_range = range(5, 20, 2) 
+    adl_long_range = range(10, 50, 5) 
 
     # Generate all possible combinations of parameters
     parameter_grid = list(product(sma_short_range, sma_long_range, rsi_threshold_range, adl_short_range, adl_long_range))
@@ -116,7 +143,7 @@ def perform_grid_search(n_clicks, ticker_input, period):
         df['ADL_Long_SMA'] = df['ADL'].rolling(window=adl_long).mean()
 
         # Signal generation based on the current parameters
-        df['Signal'] = 0  # Default to no signal
+        df['Signal'] = 0 
         df['Signal'] = df.apply(
             lambda row: 1 if row['SMA_Short'] > row['SMA_Long'] and row['ADL_Short_SMA'] > row['ADL_Long_SMA'] and row['RSI'] >= rsi_threshold and row['MACD'] > row['MACD_Signal'] else (
                 -1 if row['SMA_Short'] < row['SMA_Long'] and row['ADL_Short_SMA'] < row['ADL_Long_SMA'] and row['RSI'] < rsi_threshold and row['MACD'] <= row['MACD_Signal'] else 0
@@ -124,7 +151,7 @@ def perform_grid_search(n_clicks, ticker_input, period):
         )
 
         # Simulate trading with the generated signals
-        initial_investment = 100000  # Example initial investment
+        initial_investment = 100000 
         portfolio = initial_investment
         trades = []
         buy_price = None
@@ -151,12 +178,13 @@ def perform_grid_search(n_clicks, ticker_input, period):
                     'Profit Percentage': f"{(profit / (portfolio - profit)) * 100:.2f}%"
                 })
 
-                buy_price = None  # Reset after trade
+                buy_price = None 
 
         final_value = portfolio
         total_return = final_value - initial_investment
         percentage_return = (total_return / initial_investment) * 100
 
+        #
         # Store results
         results[params] = {
             'Initial Investment': initial_investment,
@@ -176,6 +204,7 @@ def perform_grid_search(n_clicks, ticker_input, period):
         # Update progress
         progress += 1
         progress_percent = int((progress / total_combinations) * 100)
+        progress_text = f"Progress: {progress_percent}% ({progress}/{total_combinations})"
         time.sleep(0.1)  # Simulate computation delay
 
     # Best combination results
@@ -194,7 +223,7 @@ def perform_grid_search(n_clicks, ticker_input, period):
     trades_df = pd.DataFrame(results[best_params]['Sell Trades'])
     trades_table = dbc.Table.from_dataframe(trades_df, striped=True, bordered=True, hover=True)
 
-    return summary_text, trades_table, progress_percent
+    return summary_text, trades_table, progress_percent, progress_text
 
 
 if __name__ == '__main__':
