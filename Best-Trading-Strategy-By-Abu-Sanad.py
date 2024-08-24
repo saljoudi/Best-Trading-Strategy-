@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import dash
 from dash import dcc, html, Input, Output
 import dash_bootstrap_components as dbc
@@ -195,6 +189,7 @@ def perform_grid_search(n_clicks, ticker_input, period):
         f"Average Days Held per Trade: {results[best_params]['Average Days Held per Trade']:.2f} days"
     )
 
+
     # Create the trades table
     trades_df = pd.DataFrame(results[best_params]['Sell Trades'])
     trades_table = dbc.Table.from_dataframe(trades_df, striped=True, bordered=True, hover=True)
@@ -204,4 +199,3 @@ def perform_grid_search(n_clicks, ticker_input, period):
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
