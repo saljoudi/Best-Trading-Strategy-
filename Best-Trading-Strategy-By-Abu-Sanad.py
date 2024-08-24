@@ -15,7 +15,7 @@ server = app.server  # Expose the Flask server
 
 app.layout = dbc.Container([
     dbc.Row([
-        dbc.Col(html.H1("Trading Strategy Analyzer", className="text-center"), className="mb-4 mt-4")
+        dbc.Col(html.H1("Best Trading Strategy Finder", className="text-center"), className="mb-4 mt-4")
     ]),
     dbc.Row([
         dbc.Col([
