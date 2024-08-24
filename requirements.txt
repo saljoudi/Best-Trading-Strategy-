@@ -1,0 +1,7 @@
+dash 
+yfinance
+plotly
+pandas
+plotly
+ta 
+gunicorn
