@@ -203,7 +203,7 @@ def perform_grid_search(n_clicks, ticker_input, period):
         progress += 1
         progress_percent = int((progress / total_combinations) * 100)
         progress_text = f"Progress: {progress_percent}% ({progress}/{total_combinations})"
-        time.sleep(0.1)  # Simulate computation delay
+
 
     # Best combination results
     summary_text = (
